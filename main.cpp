@@ -1,5 +1,11 @@
 #include <Arduino.h>
 #include <StarterKitNB.h>
+#include "SparkFunLIS3DH.h" //http://librarymanager/All#SparkFun-LIS3DH
+#include <Wire.h>
+
+//sensor 3-axis
+LIS3DH SensorTwo(I2C_MODE, 0x18);
+
 
 //Definitions
 #define PIN_VBAT WB_A0
@@ -26,12 +32,31 @@ int port = 1883;
 
 // msg
 String topic1 = "Nicol1607/feeds/movimiento";
+String topic2  = "Movimiento en x";
+String topic3 = "Movimiento en y";
+
 float batery;             
 
 // Movimiento
 String  mov_x = "";
+String mov_y = "";
 
-int contador = 0;
+
+
+void lis3dh_read_data()
+{
+  // read the sensor value
+  uint8_t cnt = 0;
+
+  Serial.print(" X(g) = ");
+  Serial.println(SensorTwo.readFloatAccelX(), 3);
+  Serial.print(" Y(g) = ");
+  Serial.println(SensorTwo.readFloatAccelY(), 3);
+  Serial.print(" Z(g)= ");
+  Serial.println(SensorTwo.readFloatAccelZ(), 3);
+}
+
+
 
 // funciones para el sensor
 
@@ -41,6 +66,53 @@ void setup() {
   delay(500);
 
   // código para el sensor
+  time_t timeout = millis();
+	Serial.begin(115200);
+	while (!Serial)
+	{
+		if ((millis() - timeout) < 5000)
+    {
+      delay(100);
+    }
+    else
+    {
+      break;
+    }
+	}
+
+	if (SensorTwo.begin() != 0)
+	{
+		Serial.println("Problem starting the sensor at 0x18.");
+	}
+	else
+	{
+		Serial.println("Sensor at 0x18 started.");
+		// Set low power mode
+		uint8_t data_to_write = 0;
+		SensorTwo.readRegister(&data_to_write, LIS3DH_CTRL_REG1);
+		data_to_write |= 0x08;
+		SensorTwo.writeRegister(LIS3DH_CTRL_REG1, data_to_write);
+		delay(100);
+
+		data_to_write = 0;
+		SensorTwo.readRegister(&data_to_write, 0x1E);
+		data_to_write |= 0x90;
+		SensorTwo.writeRegister(0x1E, data_to_write);
+		delay(100);
+	}
+	Serial.println("enter !");
+
+
+
+
+
+
+
+
+
+
+
+  //final dejarlo asi
 
   sk.UserAPN(apn, user, password);
 	sk.Connect(apn, band, Network);
@@ -57,14 +129,14 @@ void loop() {
   }
 
   // código para el sensor
-  mov = 40;
+  lis3dh_read_data();
+	delay(1000);
  
   batery = (analogRead(PIN_VBAT) * REAL_VBAT_MV_PER_LSB /1000);
 
-  contador = contador + 1;
+  
 
-  Serial.println(hum);
-  Serial.println(temp);
+  
   Serial.println(batery);
 
   if (!sk.LastMessageStatus)  // Para conectar al broker
@@ -73,8 +145,11 @@ void loop() {
     delay(2000);
   }
 
-  sk.SendMessage(String(contador), topic3, 0, 0, 0, 0, 10000);    // Se envia el mensaje
+  sk.SendMessage(String(topic2), topic3, 0, 0, 0, 0, 10000);    // Se envia el mensaje
   delay(2000);
+  sk.SendMessage(String(topic3), topic3, 0, 0, 0, 0, 10000);    // Se envia el mensaje
+  delay(2000);
+  
   
 
 
